@@ -61,6 +61,7 @@ import {ApiExplorerComponent} from './apiexplorer/apiexplorer.component';
 import {PurchasesComponent} from './account/purchases/purchases.component';
 import {SubscriptionsComponent} from './account/subscriptions/subscriptions.component';
 import {DeleteConfirmDialogComponent} from './shared/delete-confirm-dialog/delete-confirm-dialog.component';
+import { MetricsComponent } from './metrics/metrics.component';
 
 @NgModule({
   declarations: [
@@ -95,6 +96,7 @@ import {DeleteConfirmDialogComponent} from './shared/delete-confirm-dialog/delet
     GroupListComponent,
     ChatListComponent,
     DeleteConfirmDialogComponent,
+    MetricsComponent,
   ],
   imports: [
     NgxFileDropModule,

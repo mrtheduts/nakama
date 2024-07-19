@@ -1,17 +1,3 @@
-// Copyright 2020 The Nakama Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 import { Component, Injectable, OnInit, OnDestroy } from "@angular/core";
 import {
   ActivatedRoute,
@@ -21,8 +7,9 @@ import {
   RouterStateSnapshot,
 } from "@angular/router";
 import {
-  AccountList,
-  ApiUser,
+  MetricsList,
+  ApiMetrics,
+  Metrics,
   ConsoleService,
   UserRole,
 } from "../console.service";
@@ -30,22 +17,26 @@ import { Observable, Subject } from "rxjs";
 import { UntypedFormBuilder, UntypedFormGroup } from "@angular/forms";
 import { AuthenticationService } from "../authentication.service";
 import { DeleteConfirmService } from "../shared/delete-confirm.service";
+import { NgbActiveModal, NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { takeUntil } from "rxjs/operators";
 
 @Component({
-  templateUrl: "./accounts.component.html",
-  styleUrls: ["./accounts.component.scss"],
+  templateUrl: "./metrics.component.html",
+  styleUrls: ["./metrics.component.scss"],
 })
-export class AccountListComponent implements OnInit, OnDestroy {
+export class MetricsComponent implements OnInit {
   public readonly systemUserId = "00000000-0000-0000-0000-000000000000";
   public error = "";
-  public accountsCount = 0;
-  public accounts: Array<ApiUser> = [];
+  public metricsCount = 0;
+  public metrics: Array<ApiMetrics> = [];
+  public metrics_hidden: Array<ApiMetrics> = [];
   public nextCursor = "";
   public prevCursor = "";
   public searchForm: UntypedFormGroup;
   public querySubject: Subject<void>;
   public ongoingQuery = false;
+  public curr_responses: Array<any> = null;
+  public button_label: "View" | "Hide" = "View";
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -76,10 +67,10 @@ export class AccountListComponent implements OnInit, OnDestroy {
 
     this.route.data.subscribe(
       (d) => {
-        this.accounts.length = 0;
+        this.metrics.length = 0;
         if (d) {
-          this.accounts.push(...d[0].users);
-          this.accountsCount = d[0].users.length;
+          this.metrics.push(...d[0].metrics);
+          this.metricsCount = d[0].metrics.length;
           this.nextCursor = d[0].next_cursor;
           this.prevCursor = d[0].prev_cursor;
         }
@@ -118,15 +109,15 @@ export class AccountListComponent implements OnInit, OnDestroy {
       this.f.filter_type.value && this.f.filter_type.value === 1;
 
     this.consoleService
-      .listAccounts("", this.f.filter.value, tombstones, cursor)
+      .listMetrics("", this.f.filter.value, tombstones, cursor)
       .pipe(takeUntil(this.querySubject))
       .subscribe(
         (d) => {
           this.error = "";
 
-          this.accounts.length = 0;
-          this.accounts.push(...d.users);
-          this.accountsCount = d.total_count;
+          this.metrics.length = 0;
+          this.metrics.push(...d.metrics);
+          this.metricsCount = d.metrics.length;
           this.nextCursor = d.next_cursor;
 
           this.router.navigate([], {
@@ -152,31 +143,27 @@ export class AccountListComponent implements OnInit, OnDestroy {
     this.ongoingQuery = false;
   }
 
-  deleteAccount(event, i: number, o: ApiUser): void {
-    this.deleteConfirmService.openDeleteConfirmModal(() => {
-      event.target.disabled = true;
-      event.preventDefault();
-      this.error = "";
-      this.consoleService.deleteAccount("", o.id, false).subscribe(
-        () => {
-          this.error = "";
-          this.accounts.splice(i, 1);
-          this.accountsCount--;
-        },
-        (err) => {
-          this.error = err;
-        },
-      );
-    });
-  }
-
   deleteAllowed(): boolean {
     // only admin and developers are allowed.
     return this.authService.sessionRole <= UserRole.USER_ROLE_DEVELOPER;
   }
 
-  viewAccount(u: ApiUser): void {
+  viewAccount(u: ApiMetrics): void {
     this.router.navigate(["/accounts", u.id], { relativeTo: this.route });
+  }
+
+  setCurrentResponses(id: string, responses: Array<any>): void {
+    if (this.button_label === "View") {
+      this.metrics_hidden = this.metrics;
+      this.metrics = this.metrics.filter((m) => m.id === id);
+      this.curr_responses = responses;
+      this.button_label = "Hide";
+    } else {
+      this.metrics = this.metrics_hidden;
+      this.metrics_hidden = [];
+      this.curr_responses = null;
+      this.button_label = "View";
+    }
   }
 
   get f(): any {
@@ -185,17 +172,17 @@ export class AccountListComponent implements OnInit, OnDestroy {
 }
 
 @Injectable({ providedIn: "root" })
-export class AccountSearchResolver implements Resolve<AccountList> {
+export class MetricsResolver implements Resolve<MetricsList> {
   constructor(private readonly consoleService: ConsoleService) {}
 
   resolve(
     route: ActivatedRouteSnapshot,
     state: RouterStateSnapshot,
-  ): Observable<AccountList> {
+  ): Observable<MetricsList> {
     const filter = route.queryParamMap.get("filter");
     const tombstones = route.queryParamMap.get("tombstones");
 
-    return this.consoleService.listAccounts(
+    return this.consoleService.listMetrics(
       "",
       filter,
       tombstones === "true",
